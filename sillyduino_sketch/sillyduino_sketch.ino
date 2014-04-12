@@ -15,16 +15,20 @@
 // setup function
 void setup(void) {
   // we talk serial and we talk fast
-  Serial.begin(19200);
+  Serial.begin(9600);
 }
 
 // inifinite loop
 void loop(void) {
-  // the analog reading will range from 0 to (2^10)-1, so make it unsigned
-  // (unsigned means non-negative)
-  unsigned int reading = analogRead(INPUT_A);
+  int reading = analogRead(INPUT_A);
   // use Serial.write to send the value
   // we use write instead of print because print would send the character
   // representation of the number rather than the number
-  Serial.write(reading);
+  sendReading(reading);
+}
+
+void sendReading(int r) {
+  Serial.write(0xFF);
+  Serial.write((r >> 8) & 0xFF);
+  Serial.write(r & 0xFF);
 }
