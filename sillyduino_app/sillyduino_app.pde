@@ -113,12 +113,12 @@ void draw() {
   drawTimeDivs();
   drawVoltDivs();
 
-  // draw the sweeper and DC offset
-  drawSweep();
+  // draw the DC offset
   drawDCOffset();
-
   // draw the trace
   drawTrace();
+  // draw the sweeper
+  drawSweep();
 
   // draw the control panel
   drawControlPanel();
