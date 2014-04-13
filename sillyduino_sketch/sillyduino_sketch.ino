@@ -11,14 +11,12 @@
 #define TIMER_MHz 2
 
 // allowed ms per div values
-#define MS_1000 0
-#define MS_500  1
-#define MS_200  2
-#define MS_100  3
-#define MS_50   4
-#define MS_10   5
-#define MS_5    6
-#define MS_1    7
+#define MS_500  0
+#define MS_200  1
+#define MS_50   2
+#define MS_20   3
+#define MS_5    4
+#define MS_2    5
 
 // define some pins
 // analog inputs will be called A and B
@@ -70,9 +68,6 @@ void setup(void) {
   nDivs = Serial.read();
   ticksPerDiv = Serial.read();
   msPerDiv = setMsPerDiv(Serial.read());
-  //nDivs = 16;
-  //ticksPerDiv = 40;
-  //msPerDiv = setMsPerDiv(0);
 
   // set the divsPer1000Ticks variable
   divsPer1000Ticks = (uint8_t)(1.0/ticksPerDiv * 1000);
@@ -89,12 +84,15 @@ void setup(void) {
 
 // inifinite loop
 void loop(void) {
-  //int reading = analogRead(INPUT_A);
-  // use Serial.write to send the value
-  // we use write instead of print because print would send the character
-  // representation of the number rather than the number
+  // send the reading
   sendReading();
-  //_delay_us(7);
+  // check if the app wants us to do anything
+  if (Serial.available()>3) {
+    uint8_t r = Serial.read();
+    if (r == 'm') {
+      setParams();
+    }
+  }
 }
 
 void sendReading() {
@@ -136,29 +134,23 @@ void setTimer() {
 uint16_t setMsPerDiv(uint8_t m) {
   uint16_t ret;
   switch (m) {
-    case MS_500 :
-      ret = 500;
-      break;
     case MS_200 :
       ret = 200;
-      break;
-    case MS_100 :
-      ret = 100;
       break;
     case MS_50  :
       ret = 50;
       break;
-    case MS_10  :
-      ret = 10;
+    case MS_20  :
+      ret = 20;
       break;
     case MS_5   :
       ret = 5;
       break;
-    case MS_1   :
-      ret = 1;
+    case MS_2   :
+      ret = 2;
       break;
     default:
-      ret = 1000;
+      ret = 500;
       break;
   }
   return ret;
@@ -181,4 +173,13 @@ void initADC() {
   #endif
   // enable the ADC and start the first conversion
   ADCSRA |= ( (1<<ADEN) | (1<<ADSC) );
+}
+
+void setParams() {
+  nDivs = Serial.read();
+  ticksPerDiv = Serial.read();
+  msPerDiv = setMsPerDiv(Serial.read());
+  // set the divsPer1000Ticks variable
+  divsPer1000Ticks = (uint8_t)(1.0/ticksPerDiv * 1000);
+  setTimer();
 }

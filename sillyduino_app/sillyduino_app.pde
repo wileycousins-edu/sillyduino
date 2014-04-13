@@ -29,6 +29,12 @@ int sweep = 0;
 // twenty horizontal divs
 int timeDivs = 16;
 int timeDivWidth = scopeWidth/timeDivs;
+int ticksPerDiv = timeDivWidth;
+int tickRatio = (timeDivWidth/ticksPerDiv);
+// default mode is 1000 ms per div
+int msMode = 0;
+// display lines or dots
+boolean lines = true;
 
 // color stuff
 color bgColor = color(0);
@@ -49,9 +55,9 @@ void setup() {
   readings = new int[scopeWidth];
 
   // connect to our arduino
+  println("connecting to arduino");
   arduino = new Serial(this, Serial.list()[serialPort], serialBaud);
   // wait for the alive signal
-  println("waiting for arduino response");
   while (arduino.available() == 0) {
     println("waiting");
   }
@@ -65,15 +71,7 @@ void setup() {
   // first byte is the number of divs on the screen
   // the second byte is the number of ticks per div
   // third byte is the milliseconds per tick:
-  // 0 coresponds to 1000 ms
-  // 1 coresponds to 500 ms
-  // 2 coresponds to 200 ms
-  // 3 coresponds to 100 ms
-  // 4 coresponds to 50 ms
-  // 5 coresponds to 10 ms
-  // 6 coresponds to 5 ms
-  // 7 coresponds to 1 ms
-  byte[] params = { (byte)(timeDivs), (byte)(timeDivWidth), 0 };
+  byte[] params = { (byte)(timeDivs), (byte)(ticksPerDiv), (byte)(msMode) };
   arduino.write(params);
 }
 
@@ -83,10 +81,6 @@ void draw() {
   background(bgColor);
 
   // get a new reading and add it to the array
-  //int read = getReading();
-  //if (read != -1) {
-  //  readings[sweep] = scopeHeight-(int)(map(read, 0, 255, 1, scopeHeight));
-  //}
   getReading();
 
   // draw the time divs
@@ -98,18 +92,19 @@ void draw() {
   // draw and move the sweeper
   drawSweep();
 
-  // draw the control panel
-  if (true) {
-    drawControlPanel();
-  }
+  drawControlPanel();
 }
 
 // draw the trace
 void drawTrace() {
   stroke(tColor);
-  for (int i=1; i<scopeWidth; i++) {
-    //point(i, readings[i]);
-    line(i-1, readings[i-1], i, readings[i]);
+  for (int i=1; i<timeDivs*ticksPerDiv; i++) {
+    if (lines) {
+      line((i-1)*tickRatio, readings[i-1], i*tickRatio, readings[i]);
+    }
+    else {
+      point(i*tickRatio, readings[i]);
+    }
   }
 }
 
@@ -117,7 +112,7 @@ void drawTrace() {
 void drawSweep() {
   // draw a vertical line at the sweep position
   stroke(sColor);
-  line(sweep, 0, sweep, scopeHeight-1);
+  line(sweep*tickRatio, 0, sweep*tickRatio, scopeHeight-1);
 }
 
 // draw the time divs
@@ -141,34 +136,106 @@ void drawControlPanel() {
   fill(255);
   // text box is 20 tall and at the top of the control panel
   text("Control your stuff here", scopeWidth, 0, controlWidth, 20);
-}
 
-// get a reading from the sillyduino
-// int getReading() {
-//   int r = -1;
-//   // a complete package will be a start byte and a data bytes
-//   while (arduino.available() > 1) {
-//     // check for the start bit
-//     if (arduino.read() == 0xFF) {
-//       // build the data
-//       r = arduino.read();
-//     }
-//   }
-//   // return the data
-//   return r;
-// }
+  // control the milliseconds per div
+  text("ms per div: "+str(getMs(msMode)), scopeWidth, 40, controlWidth, 20);
+  text("press '+' or '-' to change", scopeWidth, 60, controlWidth, 20);
+
+}
 
 // put a reading in the array
 void getReading() {
   while(arduino.available() >= 4) {
     if (arduino.read() == 0xFF) {
+      // get the data from the arduino
       int tick = arduino.read();
       int div = arduino.read();
       int r = arduino.read();
 
       // move the sweeper
-      sweep = div * timeDivWidth + tick;
+      sweep = div * ticksPerDiv + tick;
       readings[sweep] = scopeHeight-(int)(map(r, 0, 255, 1, scopeHeight));
+    }
+  }
+}
+
+int getMs(int m) {
+  int ret = 1000;
+  switch (m) {
+    case 0 :
+      ret = 500;
+      break;
+    case 1 :
+      ret = 200;
+      break;
+    case 2  :
+      ret = 50;
+      break;
+    case 3  :
+      ret = 20;
+      break;
+    case 4   :
+      ret = 5;
+      break;
+    case 5   :
+      ret = 2;
+      break;
+  }
+  return ret;
+}
+
+void setMode(int m) {
+  println("setting new mode");
+  switch (m) {
+    case 1 :
+      ticksPerDiv = timeDivWidth;
+      msMode = 1;
+      lines = true;
+      break;
+    case 2 :
+      ticksPerDiv = timeDivWidth/2;
+      msMode = 2;
+      lines = true;
+      break;
+    case 3 :
+      ticksPerDiv = timeDivWidth/5;
+      msMode = 3;
+      lines = true;
+      break;
+    case 4 :
+      ticksPerDiv = timeDivWidth/8;
+      lines = false;
+      msMode = 4;
+      break;
+    case 5 :
+      ticksPerDiv = timeDivWidth/10;
+      lines = false;
+      msMode = 5;
+      break;
+    default:
+      ticksPerDiv = timeDivWidth;
+      lines = true;
+      msMode = 0;
+      break;
+  }
+  tickRatio = (timeDivWidth/ticksPerDiv);
+  byte[] p = {'m', (byte)(timeDivs), (byte)(ticksPerDiv), (byte)(msMode) };
+  arduino.clear();
+  arduino.write(p);
+}
+
+// keyboard input
+void keyPressed() {
+  // if it's a plus or a minus, decrement or increment the ms mode
+  // higher ms mode means less ms per div, so keys are backwards
+  if (key == '-') {
+    if (msMode < 7) {
+      setMode(msMode+1);
+    }
+  }
+  else if (key == '+') {
+    if (msMode > 0) {
+      setMode(msMode-1);
     }
   }
 }
