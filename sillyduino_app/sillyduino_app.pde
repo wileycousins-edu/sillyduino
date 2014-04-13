@@ -60,7 +60,7 @@ void draw() {
   // get a new reading and add it to the array
   int read = getReading();
   if (read != -1) {
-    readings[sweep] = scopeHeight-(int)(map(read, 0, 1023, 1, scopeHeight));
+    readings[sweep] = scopeHeight-(int)(map(read, 0, 255, 1, scopeHeight));
   }
 
   // draw the time divs
@@ -126,12 +126,12 @@ void drawControlPanel() {
 // get a reading from the sillyduino
 int getReading() {
   int r = -1;
-  // a complete package will be a start byte and two data bytes
-  while (arduino.available() > 2) {
+  // a complete package will be a start byte and a data bytes
+  while (arduino.available() > 1) {
     // check for the start bit
     if (arduino.read() == 0xFF) {
-      // build the data (two-bytes)
-      r = (arduino.read() << 8) | (arduino.read());
+      // build the data
+      r = arduino.read();
     }
   }
   // return the data
