@@ -24,8 +24,9 @@ int serialBaud = 19200;
 // array of readings from the arduino
 int[] readings;
 int sweep = 0;
+int currentRead;
 
-// graph divs
+// time divs
 // twenty horizontal divs
 int timeDivs = 16;
 int timeDivWidth = scopeWidth/timeDivs;
@@ -33,15 +34,37 @@ int ticksPerDiv = timeDivWidth;
 int tickRatio = (timeDivWidth/ticksPerDiv);
 // default mode is 1000 ms per div
 int msMode = 0;
+
+// voltage divs
+int voltDivs = 12;
+int voltDivHeight = scopeHeight/voltDivs;
+int scopeMid = scopeHeight/2;
+// dc offset in millivolts
+int dcOffset = 2500;
+// millivolts per div
+int mvPerDiv = 500;
+int mvMode = 0;
+// adc parameters
+int maxAdc = 255;
+int maxMV = 5000;
+
+
 // display lines or dots
 boolean lines = true;
 
 // color stuff
+// background
 color bgColor = color(0);
+// control panel
 color cpColor = color(128);
+// division grid
 color divColor = color(64);
+// trace
 color tColor = color(255);
+// sweeper
 color sColor = color(255, 0, 0);
+// dc offset
+color dcColor = color(0, 255, 0);
 
 // setup function
 void setup() {
@@ -58,15 +81,11 @@ void setup() {
   println("connecting to arduino");
   arduino = new Serial(this, Serial.list()[serialPort], serialBaud);
   // wait for the alive signal
-  while (arduino.available() == 0) {
+  while ((arduino.available() == 0) || (arduino.read() != 127)) {
     println("waiting");
   }
-  if (arduino.read() == 127) {
-    println("success!");
-  }
-  else {
-    println("failure");
-  }
+  println("success!");
+  
   // send parameter data in bytes
   // first byte is the number of divs on the screen
   // the second byte is the number of ticks per div
@@ -83,16 +102,25 @@ void draw() {
   // get a new reading and add it to the array
   getReading();
 
-  // draw the time divs
+  // draw the divs
   drawTimeDivs();
+  drawVoltDivs();
+
+  // draw the sweeper and DC offset
+  drawSweep();
+  drawDCOffset();
 
   // draw the trace
   drawTrace();
 
-  // draw and move the sweeper
-  drawSweep();
-
+  // draw the control panel
   drawControlPanel();
+}
+
+int mvToY(int mv) {
+  float m = (mv - dcOffset)/((float)(mvPerDiv));
+  m *= voltDivHeight;
+  return (scopeMid - (int)(m));
 }
 
 // draw the trace
@@ -100,10 +128,11 @@ void drawTrace() {
   stroke(tColor);
   for (int i=1; i<timeDivs*ticksPerDiv; i++) {
     if (lines) {
-      line((i-1)*tickRatio, readings[i-1], i*tickRatio, readings[i]);
+      // take map mv readings to window
+      line((i-1)*tickRatio, mvToY(readings[i-1]), i*tickRatio, mvToY(readings[i]));
     }
     else {
-      point(i*tickRatio, readings[i]);
+      point(i*tickRatio, mvToY(readings[i]));
     }
   }
 }
@@ -117,9 +146,25 @@ void drawSweep() {
 
 // draw the time divs
 void drawTimeDivs() {
+  stroke(divColor);
   for (int i=timeDivWidth; i<scopeWidth; i+=timeDivWidth) {
-    stroke(divColor);
     line(i, 0, i, scopeHeight);
+  }
+}
+
+// draw the dcOffset line
+void drawDCOffset() {
+  stroke(dcColor);
+  strokeWeight(3);
+  line(0, scopeMid, scopeWidth-1, scopeMid);
+  strokeWeight(1);
+}
+
+// draw the volt divs
+void drawVoltDivs() {
+  stroke(divColor);
+  for (int i=voltDivHeight; i<scopeHeight; i+=voltDivHeight) {
+    line(0, i, scopeWidth-1, i);
   }
 }
 
@@ -141,6 +186,16 @@ void drawControlPanel() {
   text("ms per div: "+str(getMs(msMode)), scopeWidth, 40, controlWidth, 20);
   text("press '+' or '-' to change", scopeWidth, 60, controlWidth, 20);
 
+  // control the millivolts per div
+  text("mV per div: "+str(mvPerDiv), scopeWidth, 100, controlWidth, 20);
+  text("press '[' or ']' to change", scopeWidth, 120, controlWidth, 20);
+
+  // control the dc offset
+  text("dc offset (mV): "+str(dcOffset), scopeWidth, 160, controlWidth, 20);
+  text("press 'q' or 'a' to change", scopeWidth, 180, controlWidth, 20);
+
+  // current measurement
+  text("current reading (mV): " + str(currentRead), scopeWidth, 220, controlWidth, 20);
 }
 
 // put a reading in the array
@@ -154,7 +209,9 @@ void getReading() {
 
       // move the sweeper
       sweep = div * ticksPerDiv + tick;
-      readings[sweep] = scopeHeight-(int)(map(r, 0, 255, 1, scopeHeight));
+      // map readings to millivolts
+      currentRead = (int)(map(r, 0, 255, 0, maxMV));
+      readings[sweep] = currentRead;
     }
   }
 }
@@ -224,18 +281,69 @@ void setMode(int m) {
   arduino.write(p);
 }
 
+void setZoom(int m) {
+  println("setting new zoom");
+  switch (m) {
+    case 1 :
+      mvMode = 1;
+      mvPerDiv = 300;
+      break;
+    case 2 :
+      mvMode = 2;
+      mvPerDiv = 100;
+      break;
+    case 3 :
+      mvMode = 3;
+      mvPerDiv = 50;
+      break;
+    case 4 :
+      mvMode = 4;
+      mvPerDiv = 20;
+      break;
+    case 5 :
+      mvMode = 5;
+      mvPerDiv = 10;
+      break;
+    default:
+      mvMode = 0;
+      mvPerDiv = 500;
+      break;
+  }
+}
+
 // keyboard input
 void keyPressed() {
   // if it's a plus or a minus, decrement or increment the ms mode
+  // if it's a [ or a ], decrement or increment the zoom
   // higher ms mode means less ms per div, so keys are backwards
   if (key == '-') {
-    if (msMode < 7) {
+    if (msMode < 5) {
       setMode(msMode+1);
     }
   }
   else if (key == '+') {
     if (msMode > 0) {
       setMode(msMode-1);
+    }
+  }
+  else if (key == '[') {
+    if (mvMode < 5) {
+      setZoom(mvMode+1);
+    }
+  }
+  else if (key == ']') {
+    if (mvMode > 0) {
+      setZoom(mvMode-1);
+    }
+  }
+  else if (key == 'q') {
+    if (dcOffset < maxMV) {
+      dcOffset += 100;
+    }
+  }
+  else if (key == 'a') {
+    if (dcOffset > 0) {
+      dcOffset -= 100;
     }
   }
 }
