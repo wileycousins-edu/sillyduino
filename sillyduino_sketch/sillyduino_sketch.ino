@@ -58,7 +58,7 @@ ISR(TIMER1_COMPA_vect) {
 // setup function
 void setup(void) {
   // we talk serial
-  Serial.begin(9600);
+  Serial.begin(19200);
   // we're alive!
   Serial.write(127);
 
@@ -94,12 +94,15 @@ void loop(void) {
   // we use write instead of print because print would send the character
   // representation of the number rather than the number
   sendReading();
-  _delay_us(7);
+  //_delay_us(7);
 }
 
 void sendReading() {
-  Serial.write(0xFF);
-  Serial.write(read);
+  uint8_t r[4] = {0xFF, tick, divis, read};
+  Serial.write(r, 4);
+  //Serial.write(tick);
+  //Serial.write(divis)
+  //Serial.write(read);
   //Serial.write('\n');
 }
 

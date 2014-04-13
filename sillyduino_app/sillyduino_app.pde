@@ -19,7 +19,7 @@ int controlWidth = 200;
 // serial port to use
 // get this from looking at your port list in the Arduino IDE
 int serialPort = 5;
-int serialBaud = 9600;
+int serialBaud = 19200;
 
 // array of readings from the arduino
 int[] readings;
@@ -83,10 +83,11 @@ void draw() {
   background(bgColor);
 
   // get a new reading and add it to the array
-  int read = getReading();
-  if (read != -1) {
-    readings[sweep] = scopeHeight-(int)(map(read, 0, 255, 1, scopeHeight));
-  }
+  //int read = getReading();
+  //if (read != -1) {
+  //  readings[sweep] = scopeHeight-(int)(map(read, 0, 255, 1, scopeHeight));
+  //}
+  getReading();
 
   // draw the time divs
   drawTimeDivs();
@@ -117,12 +118,6 @@ void drawSweep() {
   // draw a vertical line at the sweep position
   stroke(sColor);
   line(sweep, 0, sweep, scopeHeight-1);
-
-  // move the sweeper
-  sweep++;
-  if (sweep >= scopeWidth) {
-    sweep = 0;
-  }
 }
 
 // draw the time divs
@@ -149,16 +144,31 @@ void drawControlPanel() {
 }
 
 // get a reading from the sillyduino
-int getReading() {
-  int r = -1;
-  // a complete package will be a start byte and a data bytes
-  while (arduino.available() > 1) {
-    // check for the start bit
+// int getReading() {
+//   int r = -1;
+//   // a complete package will be a start byte and a data bytes
+//   while (arduino.available() > 1) {
+//     // check for the start bit
+//     if (arduino.read() == 0xFF) {
+//       // build the data
+//       r = arduino.read();
+//     }
+//   }
+//   // return the data
+//   return r;
+// }
+
+// put a reading in the array
+void getReading() {
+  while(arduino.available() >= 4) {
     if (arduino.read() == 0xFF) {
-      // build the data
-      r = arduino.read();
+      int tick = arduino.read();
+      int div = arduino.read();
+      int r = arduino.read();
+
+      // move the sweeper
+      sweep = div * timeDivWidth + tick;
+      readings[sweep] = scopeHeight-(int)(map(r, 0, 255, 1, scopeHeight));
     }
   }
-  // return the data
-  return r;
 }
