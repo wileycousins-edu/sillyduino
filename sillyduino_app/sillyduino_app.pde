@@ -50,6 +50,31 @@ void setup() {
 
   // connect to our arduino
   arduino = new Serial(this, Serial.list()[serialPort], serialBaud);
+  // wait for the alive signal
+  println("waiting for arduino response");
+  while (arduino.available() == 0) {
+    println("waiting");
+  }
+  if (arduino.read() == 127) {
+    println("success!");
+  }
+  else {
+    println("failure");
+  }
+  // send parameter data in bytes
+  // first byte is the number of divs on the screen
+  // the second byte is the number of ticks per div
+  // third byte is the milliseconds per tick:
+  // 0 coresponds to 1000 ms
+  // 1 coresponds to 500 ms
+  // 2 coresponds to 200 ms
+  // 3 coresponds to 100 ms
+  // 4 coresponds to 50 ms
+  // 5 coresponds to 10 ms
+  // 6 coresponds to 5 ms
+  // 7 coresponds to 1 ms
+  byte[] params = { (byte)(timeDivs), (byte)(timeDivWidth), 0 };
+  arduino.write(params);
 }
 
 // draw function
