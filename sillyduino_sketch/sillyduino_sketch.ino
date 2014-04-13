@@ -57,6 +57,8 @@ ISR(TIMER1_COMPA_vect) {
 void setup(void) {
   // we talk serial
   Serial.begin(19200);
+  while(!Serial.available());
+  Serial.read();
   // we're alive!
   Serial.write(127);
 
@@ -171,8 +173,15 @@ void initADC() {
   #ifdef ADHSM
   ADCSRB |= (1<<ADHSM);
   #endif
+  // set the channel
+  setADCChannel(INPUT_A);
   // enable the ADC and start the first conversion
   ADCSRA |= ( (1<<ADEN) | (1<<ADSC) );
+}
+
+void setADCChannel(uint8_t pin) {
+  pin = analogPinToChannel(pin);
+  ADMUX = (ADMUX & ~0x1F) | (pin & 0x07);
 }
 
 void setParams() {

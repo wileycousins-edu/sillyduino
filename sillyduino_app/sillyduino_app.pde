@@ -81,11 +81,13 @@ void setup() {
   println("connecting to arduino");
   arduino = new Serial(this, Serial.list()[serialPort], serialBaud);
   // wait for the alive signal
+  arduino.write(0xFF);
   while ((arduino.available() == 0) || (arduino.read() != 127)) {
     println("waiting");
+    //arduino.write(0xFF);
   }
   println("success!");
-  
+
   // send parameter data in bytes
   // first byte is the number of divs on the screen
   // the second byte is the number of ticks per div
