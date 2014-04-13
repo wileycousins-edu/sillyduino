@@ -57,8 +57,11 @@ ISR(TIMER1_COMPA_vect) {
 void setup(void) {
   // we talk serial
   Serial.begin(19200);
+  // check for builtin USB and act accordingly
+  #if defined(__AVR_ATmega32U4__)
   while(!Serial.available());
   Serial.read();
+  #endif
   // we're alive!
   Serial.write(127);
 
@@ -180,7 +183,9 @@ void initADC() {
 }
 
 void setADCChannel(uint8_t pin) {
+  #if defined(analogPinToChannel)
   pin = analogPinToChannel(pin);
+  #endif
   ADMUX = (ADMUX & ~0x1F) | (pin & 0x07);
 }
 

@@ -6,7 +6,16 @@
 
 // we're gonna need some serial communication
 import processing.serial.*;
+
+// change this to true if you're using a sparkfun pro micro
+boolean proMicro = false;
+// serial port to use
+// get this from looking at your port list in the Arduino IDE
+int serialPort = 2;
+
+// baudrate
 Serial arduino;
+int serialBaud = 19200;
 
 // scope window
 int scopeWidth = 640;
@@ -15,11 +24,6 @@ int scopeHeight = 480;
 // control panel
 PFont f;
 int controlWidth = 200;
-
-// serial port to use
-// get this from looking at your port list in the Arduino IDE
-int serialPort = 5;
-int serialBaud = 19200;
 
 // array of readings from the arduino
 int[] readings;
@@ -81,10 +85,11 @@ void setup() {
   println("connecting to arduino");
   arduino = new Serial(this, Serial.list()[serialPort], serialBaud);
   // wait for the alive signal
-  arduino.write(0xFF);
+  if (proMicro) {
+    arduino.write(0xFF);
+  }
   while ((arduino.available() == 0) || (arduino.read() != 127)) {
     println("waiting");
-    //arduino.write(0xFF);
   }
   println("success!");
 
