@@ -8,7 +8,7 @@
 import processing.serial.*;
 
 // change this to true if you're using a sparkfun pro micro
-boolean proMicro = false;
+boolean proMicro = true;
 // serial port to use
 // get this from looking at your port list in the Arduino IDE
 int serialPort = -1;
