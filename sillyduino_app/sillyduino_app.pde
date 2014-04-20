@@ -110,7 +110,7 @@ void getSerialPort() {
   int p = 0;
   int hover = -1;
   for ( int i = 0; i < ports.length; i++ ) {
-    if ( ports[i].indexOf("tty") > 0 ) {
+    //if ( ports[i].indexOf("tty") > 0 ) {
       int box_width = 20;
       int box_x = box_width;
       int box_y = int(box_width * p++ * 1.5 + 50);
@@ -129,7 +129,7 @@ void getSerialPort() {
         fill(255);
       rect(box_x, box_y, box_width, box_width);
       text(ports[i], box_x + box_width*2, box_y + box_width/2);
-    }
+//    }
   }
 }
 
