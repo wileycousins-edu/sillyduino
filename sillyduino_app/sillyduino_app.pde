@@ -11,7 +11,7 @@ import processing.serial.*;
 boolean proMicro = false;
 // serial port to use
 // get this from looking at your port list in the Arduino IDE
-int serialPort = 2;
+int serialPort = -1;
 
 // baudrate
 Serial arduino;
@@ -80,15 +80,17 @@ void setup() {
 
   // get our data array ready
   readings = new int[scopeWidth];
+}
 
-  // connect to our arduino
-  println("connecting to arduino");
+// connect to our arduino
+void connectArduino() {  
+  println("connecting to arduino ("+Serial.list()[serialPort]+")");
   arduino = new Serial(this, Serial.list()[serialPort], serialBaud);
   // wait for the alive signal
   if (proMicro) {
     arduino.write(0xFF);
   }
-  while ((arduino.available() == 0) || (arduino.read() != 127)) {
+  while ( (arduino.available () == 0) || (arduino.read() != 127)) {
     println("waiting");
   }
   println("success!");
@@ -97,14 +99,50 @@ void setup() {
   // first byte is the number of divs on the screen
   // the second byte is the number of ticks per div
   // third byte is the milliseconds per tick:
-  byte[] params = { (byte)(timeDivs), (byte)(ticksPerDiv), (byte)(msMode) };
-  arduino.write(params);
+  byte[] params = { 
+    (byte)(timeDivs), (byte)(ticksPerDiv), (byte)(msMode)
+    };
+    arduino.write(params);
+}
+
+void getSerialPort() {
+  String[] ports = Serial.list();
+  int p = 0;
+  int hover = -1;
+  for ( int i = 0; i < ports.length; i++ ) {
+    if ( ports[i].indexOf("tty") > 0 ) {
+      int box_width = 20;
+      int box_x = box_width;
+      int box_y = int(box_width * p++ * 1.5 + 50);
+      fill(190);
+      text("select your Arduino's serial port:", box_x, 20);
+      if (  (mouseX > box_x && mouseX < box_x+box_width ) && ( mouseY > box_y && mouseY < box_y+box_width )) {
+        hover = i;
+        fill(255, 0, 0);
+        if ( mousePressed == true ) {
+          serialPort = hover;
+          connectArduino();
+          return;
+        }
+      }
+      else
+        fill(255);
+      rect(box_x, box_y, box_width, box_width);
+      text(ports[i], box_x + box_width*2, box_y + box_width/2);
+    }
+  }
 }
 
 // draw function
 void draw() {
   // set stroke to white and background to white
   background(bgColor);
+
+  // if we haven't selected a port yet, lets do it
+  if ( serialPort < 0 ) {
+    getSerialPort();
+    return;
+  }
 
   // get a new reading and add it to the array
   getReading();
@@ -207,7 +245,7 @@ void drawControlPanel() {
 
 // put a reading in the array
 void getReading() {
-  while(arduino.available() >= 4) {
+  while (arduino.available () >= 4) {
     if (arduino.read() == 0xFF) {
       // get the data from the arduino
       int tick = arduino.read();
@@ -226,24 +264,24 @@ void getReading() {
 int getMs(int m) {
   int ret = 1000;
   switch (m) {
-    case 0 :
-      ret = 500;
-      break;
-    case 1 :
-      ret = 200;
-      break;
-    case 2  :
-      ret = 50;
-      break;
-    case 3  :
-      ret = 20;
-      break;
-    case 4   :
-      ret = 5;
-      break;
-    case 5   :
-      ret = 2;
-      break;
+  case 0 :
+    ret = 500;
+    break;
+  case 1 :
+    ret = 200;
+    break;
+  case 2  :
+    ret = 50;
+    break;
+  case 3  :
+    ret = 20;
+    break;
+  case 4   :
+    ret = 5;
+    break;
+  case 5   :
+    ret = 2;
+    break;
   }
   return ret;
 }
@@ -251,70 +289,72 @@ int getMs(int m) {
 void setMode(int m) {
   println("setting new mode");
   switch (m) {
-    case 1 :
-      ticksPerDiv = timeDivWidth;
-      msMode = 1;
-      lines = true;
-      break;
-    case 2 :
-      ticksPerDiv = timeDivWidth/2;
-      msMode = 2;
-      lines = true;
-      break;
-    case 3 :
-      ticksPerDiv = timeDivWidth/5;
-      msMode = 3;
-      lines = true;
-      break;
-    case 4 :
-      ticksPerDiv = timeDivWidth/8;
-      lines = false;
-      msMode = 4;
-      break;
-    case 5 :
-      ticksPerDiv = timeDivWidth/10;
-      lines = false;
-      msMode = 5;
-      break;
-    default:
-      ticksPerDiv = timeDivWidth;
-      lines = true;
-      msMode = 0;
-      break;
+  case 1 :
+    ticksPerDiv = timeDivWidth;
+    msMode = 1;
+    lines = true;
+    break;
+  case 2 :
+    ticksPerDiv = timeDivWidth/2;
+    msMode = 2;
+    lines = true;
+    break;
+  case 3 :
+    ticksPerDiv = timeDivWidth/5;
+    msMode = 3;
+    lines = true;
+    break;
+  case 4 :
+    ticksPerDiv = timeDivWidth/8;
+    lines = false;
+    msMode = 4;
+    break;
+  case 5 :
+    ticksPerDiv = timeDivWidth/10;
+    lines = false;
+    msMode = 5;
+    break;
+  default:
+    ticksPerDiv = timeDivWidth;
+    lines = true;
+    msMode = 0;
+    break;
   }
   tickRatio = (timeDivWidth/ticksPerDiv);
-  byte[] p = {'m', (byte)(timeDivs), (byte)(ticksPerDiv), (byte)(msMode) };
-  arduino.clear();
+  byte[] p = {
+    'm', (byte)(timeDivs), (byte)(ticksPerDiv), (byte)(msMode)
+    };
+    arduino.clear();
   arduino.write(p);
 }
 
 void setZoom(int m) {
   println("setting new zoom");
   switch (m) {
-    case 1 :
-      mvMode = 1;
-      mvPerDiv = 300;
-      break;
-    case 2 :
-      mvMode = 2;
-      mvPerDiv = 100;
-      break;
-    case 3 :
-      mvMode = 3;
-      mvPerDiv = 50;
-      break;
-    case 4 :
-      mvMode = 4;
-      mvPerDiv = 20;
-      break;
-    case 5 :
-      mvMode = 5;
-      mvPerDiv = 10;
-      break;
-    default:
-      mvMode = 0;
-      mvPerDiv = 500;
-      break;
+  case 1 :
+    mvMode = 1;
+    mvPerDiv = 300;
+    break;
+  case 2 :
+    mvMode = 2;
+    mvPerDiv = 100;
+    break;
+  case 3 :
+    mvMode = 3;
+    mvPerDiv = 50;
+    break;
+  case 4 :
+    mvMode = 4;
+    mvPerDiv = 20;
+    break;
+  case 5 :
+    mvMode = 5;
+    mvPerDiv = 10;
+    break;
+  default:
+    mvMode = 0;
+    mvPerDiv = 500;
+    break;
   }
 }
 
@@ -354,3 +394,4 @@ void keyPressed() {
     }
   }
 }
+
